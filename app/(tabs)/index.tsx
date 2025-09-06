@@ -1,75 +1,85 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React, { useContext } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { WorkoutContext } from "../../context/WorkoutContext";
+import { useStepCounter } from "../../hooks/useStepCounter";
+import { AnimatedCircularProgress } from "react-native-circular-progress";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { workouts } = useContext(WorkoutContext);
+  const { steps, calories } = useStepCounter(70);
+
+  const moving = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+  const movingGoal = 30;
+  const caloriesGoal = 400;
+  const stepsGoal = 6000;
+  const screenHeight = Dimensions.get("window").height;
+
+  const goToWorkout = (mode: string) => {
+    router.push(`/workout-map?mode=${mode}`);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={[styles.contentContainer, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+        <View style={{ marginTop: screenHeight * 0.1 }} />
+
+        <View style={styles.ringsContainer}>
+          <AnimatedCircularProgress size={200} width={20} fill={(calories / caloriesGoal) * 100} tintColor="#e91e63" backgroundColor="rgba(233, 30, 99, 0.2)" arcSweepAngle={180} rotation={-90} lineCap="round" />
+          <AnimatedCircularProgress size={160} width={20} fill={(steps / stepsGoal) * 100} tintColor="#ff9800" backgroundColor="rgba(255, 152, 0, 0.2)" arcSweepAngle={180} rotation={-90} lineCap="round" style={styles.innerRing} />
+          <AnimatedCircularProgress size={120} width={20} fill={(moving / movingGoal) * 100} tintColor="#2196f3" backgroundColor="rgba(33, 150, 243, 0.2)" arcSweepAngle={180} rotation={-90} lineCap="round" style={styles.innerRing} />
+        </View>
+
+        <Text style={styles.header}>Today's Activity</Text>
+
+        <View style={styles.card}>
+          <View style={styles.statRow}>
+            <View style={styles.labelRow}><Text style={styles.label}>🔥 Calories</Text><View style={[styles.dot, { backgroundColor: "#e91e63" }]} /></View>
+            <Text style={styles.value}>{Math.round(calories)}/{caloriesGoal} kcal</Text>
+          </View>
+          <View style={styles.statRow}>
+            <View style={styles.labelRow}><Text style={styles.label}>👟 Steps</Text><View style={[styles.dot, { backgroundColor: "#ff9800" }]} /></View>
+            <Text style={styles.value}>{steps}/{stepsGoal}</Text>
+          </View>
+          <View style={styles.statRow}>
+            <View style={styles.labelRow}><Text style={styles.label}>⏱ Moving</Text><View style={[styles.dot, { backgroundColor: "#2196f3" }]} /></View>
+            <Text style={styles.value}>{moving}/{movingGoal} mins</Text>
+          </View>
+        </View>
+
+        <View style={styles.activitiesRow}>
+          <TouchableOpacity style={styles.activityButton} onPress={() => goToWorkout("running")}><Icon name="run" size={28} color="#fff" /><Text style={styles.activityText}>Running</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.activityButton} onPress={() => goToWorkout("walking")}><Icon name="walk" size={28} color="#fff" /><Text style={styles.activityText}>Walking</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.activityButton} onPress={() => goToWorkout("bike")}><Icon name="bike" size={28} color="#fff" /><Text style={styles.activityText}>Bike</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.activityButton} onPress={() => goToWorkout("more")}><Icon name="dots-horizontal" size={28} color="#fff" /><Text style={styles.activityText}>More</Text></TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20 },
+  header: { fontSize: 28, fontWeight: "bold", color: "#fff", textAlign: "center", marginBottom: 20 },
+  contentContainer: { alignItems: "center" },
+  ringsContainer: { alignItems: "center", justifyContent: "center" },
+  innerRing: { position: "absolute" },
+  card: { backgroundColor: "#1c1c1e", borderRadius: 12, padding: 20, width: "100%", marginBottom: 20 },
+  statRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 15 },
+  labelRow: { flexDirection: "row", alignItems: "center" },
+  dot: { width: 10, height: 10, borderRadius: 5, marginLeft: 4 },
+  label: { color: "#fff", fontSize: 16 },
+  value: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  activitiesRow: { flexDirection: "row", justifyContent: "space-around", width: "100%", backgroundColor: "#1c1c1e", borderRadius: 12, paddingVertical: 12, marginBottom: 8 },
+  activityButton: { alignItems: "center", width: "23%" },
+  activityText: { color: "#fff", fontSize: 14, marginTop: 4, textAlign: "center" },
 });
