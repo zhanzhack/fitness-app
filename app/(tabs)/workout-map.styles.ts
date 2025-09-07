@@ -1,0 +1,28 @@
+import { StyleSheet, Dimensions } from "react-native";
+
+export const styles = StyleSheet.create({
+  container:{ flex:1, backgroundColor:"#000" },
+  header:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", padding:16, backgroundColor:"#000", zIndex:10 },
+  headerTitle:{ color:"#fff", fontSize:18, fontWeight:"bold" },
+  mapContainer:{ height:Dimensions.get("window").height*0.55, borderRadius:12, overflow:"hidden", marginHorizontal:20, marginTop:10, marginBottom:20 },
+  buttonLocationTop:{ position:"absolute", top:16, right:16, backgroundColor:"#2196f3", padding:12, borderRadius:50, zIndex:10 },
+  scrollContent:{ paddingHorizontal:20, paddingBottom:100, flexGrow:1 },
+  initialControls:{ padding:20, alignItems:"center" },
+  button:{ backgroundColor:"#ff9800", padding:16, borderRadius:12, width:"100%", alignItems:"center", marginBottom:10 },
+  buttonText:{ color:"#fff", fontSize:14, fontWeight:"bold" },
+  countdownText:{ color:"#fff", fontSize:22, marginVertical:10, textAlign:"center" },
+  metricsContainer:{ flexDirection:"row", flexWrap:"wrap", justifyContent:"space-between", marginBottom:20 },
+  metricCard:{ backgroundColor:"#1c1c1e", borderRadius:12, padding:16, width:"48%", marginBottom:10, alignItems:"center", justifyContent:"center" },
+  metricLabel:{ color:"#888", fontSize:14, marginBottom:4 },
+  metricValue:{ color:"#fff", fontSize:20, fontWeight:"bold" },
+  startedButtons:{ flexDirection:"row", marginTop:10, flexWrap:"wrap", justifyContent:"center" },
+  buttonPause:{ backgroundColor:"#fbc02d", padding:16, borderRadius:12, width:"25%", alignItems:"center", marginRight:10 },
+  buttonResume:{ backgroundColor:"#4caf50", padding:16, borderRadius:12, width:"25%", alignItems:"center", marginRight:10 },
+  buttonStop:{ backgroundColor:"#e53935", padding:16, borderRadius:12, width:"25%", alignItems:"center", marginRight:10 },
+  targetContainer:{ width:"100%", alignItems:"center", marginBottom:20 },
+  targetButton:{ flexDirection:"row", alignItems:"center", backgroundColor:"#1c1c1e", padding:12, borderRadius:8, width:"100%", justifyContent:"center" },
+  targetText:{ color:"#fff", fontSize:16 },
+  targetMenuItem:{ padding:12, borderBottomWidth:1, borderBottomColor:"#333", flexDirection:"row", alignItems:"center" },
+  targetMenuItemText:{ color:"#fff", fontSize:16 },
+  targetMenuUp:{ position:"absolute", bottom:60, width:"100%", backgroundColor:"#1c1c1e", borderRadius:8, zIndex:1000, paddingVertical:4 },
+});
