@@ -82,7 +82,7 @@ export default function HomeScreen() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3)
       .map(w => ({
-        type: w.type, // теперь корректно
+        type: w.type,
         distance: w.distance,
         created_at: w.created_at,
       }));
@@ -189,10 +189,7 @@ export default function HomeScreen() {
           created_at: timestamp,
         };
 
-        // обновление локального контекста
         addLocalWorkout({ type: mode, distance, created_at: timestamp });
-
-        // отправка в Supabase
         await addWorkout(workout);
       }
     });
@@ -263,13 +260,21 @@ export default function HomeScreen() {
           })}
         </View>
 
-        <View style={styles.card}>
+        {/* --- Кликабельное Last Workouts --- */}
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.8}
+          onPress={() => router.push("/workout-history")}
+        >
           <Text style={[styles.label, { fontSize: 18, marginBottom: 8 }]}>Last Workouts</Text>
 
           {/* Кнопка Refresh */}
           <TouchableOpacity
             style={{ marginBottom: 8, alignSelf: "flex-end" }}
-            onPress={loadLastWorkouts}
+            onPress={(e) => {
+              e.stopPropagation();
+              loadLastWorkouts();
+            }}
           >
             <Text style={{ color: "#FFD93D", fontWeight: "bold" }}>Refresh</Text>
           </TouchableOpacity>
@@ -289,7 +294,7 @@ export default function HomeScreen() {
               );
             })
           )}
-        </View>
+        </TouchableOpacity>
 
       </ScrollView>
     </LinearGradient>

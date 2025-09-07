@@ -12,7 +12,7 @@ import { Accelerometer } from "expo-sensors";
 import haversine from "haversine";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { styles } from "./workout-map.styles";
+import { styles } from "../../lib/styles/workout-map.styles";
 
 import { supabase } from "../../lib/supabase";
 import { getGuestId } from "../../lib/guest";
@@ -56,7 +56,7 @@ export default function WorkoutMap() {
   const ADAPTIVE_BUFFER_SIZE = 3;
   const MIN_DISTANCE_MOVED = 0.002;
   const MAX_THRESHOLD_KM = 0.001;
-
+  const directionBuffer = useRef<{ x: number; y: number; z: number }[]>([]);
   // --- Geolocation tracking ---
   useEffect(() => {
     let locationSub: Location.LocationSubscription | null = null;
@@ -141,6 +141,8 @@ export default function WorkoutMap() {
     return () => { if (locationSub) locationSub.remove(); };
   }, [started, paused, countdown]);
 
+
+
   // --- Accelerometer step detection ---
 useEffect(() => {
   if (!started) return;
@@ -150,25 +152,20 @@ useEffect(() => {
   const BASE_THRESHOLD = 1.2;
   const MIN_STEP_MAGNITUDE = 1.05;
   const FLAT_THRESHOLD = 0.02;
-  const MIN_SPEED = 0.5; // минимальная скорость для засчета шага (км/ч)
-  const jerkThreshold = 0.8; // сила резкого рывка
-  const directionBufferSize = 5; // сколько последних измерений анализируем
-
-  if (!directionBuffer.current) directionBuffer.current = [];
+  const MIN_SPEED = 0.5;
+  const jerkThreshold = 0.8;
+  const directionBufferSize = 5;
 
   const subscription = Accelerometer.addListener(acc => {
     const magnitude = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
     const horizontal = Math.sqrt(acc.x ** 2 + acc.y ** 2);
 
-    // --- фильтр "телефон лежит" ---
     if (horizontal < FLAT_THRESHOLD && Math.abs(acc.z - 1) < FLAT_THRESHOLD) return;
 
-    // --- буфер и сглаживание ---
     accelBuffer.current.push(magnitude);
     if (accelBuffer.current.length > BUFFER_SIZE) accelBuffer.current.shift();
     const avgMag = accelBuffer.current.reduce((a, b) => a + b, 0) / accelBuffer.current.length;
 
-    // --- стандартное отклонение буфера ---
     const mean = avgMag;
     const variance =
       accelBuffer.current.reduce((sum, val) => sum + (val - mean) ** 2, 0) / accelBuffer.current.length;
@@ -177,7 +174,7 @@ useEffect(() => {
     const now = Date.now();
     const adaptiveThreshold = BASE_THRESHOLD + 0.2 * Math.sin(duration / 10) + stdDev * 0.5;
 
-    // --- фильтр резких одиночных движений ---
+    // --- направление ---
     directionBuffer.current.push({ x: acc.x, y: acc.y, z: acc.z });
     if (directionBuffer.current.length > directionBufferSize) directionBuffer.current.shift();
 
@@ -187,15 +184,12 @@ useEffect(() => {
     const deltaY = Math.abs(last.y - prev.y);
     const deltaZ = Math.abs(last.z - prev.z);
 
-    // если был резкий рывок, но вся история ровная → шум
     const wasStable = accelBuffer.current.every(val => Math.abs(val - mean) < 0.05);
     if ((deltaX > jerkThreshold || deltaY > jerkThreshold || deltaZ > jerkThreshold) && wasStable) {
-      return; // игнорируем
+      return;
     }
 
-    // --- фильтр скорости и движения ---
     const isMoving = speed >= MIN_SPEED;
-
     if (
       avgMag > adaptiveThreshold &&
       avgMag > MIN_STEP_MAGNITUDE &&
