@@ -1,5 +1,3 @@
-// app/tabs/_layout.tsx
-
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { WorkoutProvider } from "../../context/WorkoutContext";
@@ -33,7 +31,6 @@ export default function TabLayout() {
             ),
           }}
         />
-        {/* Добавляем новую вкладку для workout-map. Она будет скрыта из-за href: null */}
         <Tabs.Screen
           name="workout-map"
           options={{
@@ -41,7 +38,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="map" color={color} size={size} />
             ),
-            href: null, // Эта опция скрывает вкладку из меню, но сохраняет навигацию
+            href: null, // скрытая вкладка
           }}
         />
         <Tabs.Screen
