@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
+import { Accelerometer } from "expo-sensors";
 import haversine from "haversine";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -22,7 +23,7 @@ type TargetMode = "none" | "distance" | "duration" | "calories";
 export default function WorkoutMap() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const mode = (params.mode as string) ?? "running"; // используем mode из HomeScreen
+  const mode = (params.mode as string) ?? "running";
 
   const [started, setStarted] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -36,7 +37,6 @@ export default function WorkoutMap() {
   const [selectedTarget, setSelectedTarget] = useState<TargetMode>("none");
 
   const webviewRef = useRef<WebView>(null);
-
   const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const distanceRef = useRef<number>(0);
@@ -44,15 +44,17 @@ export default function WorkoutMap() {
   const speedBuffer = useRef<number[]>([]);
   const lastStopRef = useRef<number | null>(null);
   const recentDistances = useRef<number[]>([]);
-  const durationInterval = useRef<number | null>(null);
+  const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const maxSpeedRef = useRef<number>(0);
+  const accelBuffer = useRef<number[]>([]);
+  const lastStepTime = useRef<number>(0);
 
   const stepsPerKm = 1300;
   const SPEED_BUFFER_SEC = 5;
-  const MIN_SPEED_KMH = 0.5;
-  const STOP_TIMEOUT = 2000;
-  const ADAPTIVE_BUFFER_SIZE = 5;
-  const MIN_THRESHOLD_KM = 0.0005;
+  const MIN_SPEED_KMH = 1.0;
+  const STOP_TIMEOUT = 3000;
+  const ADAPTIVE_BUFFER_SIZE = 3;
+  const MIN_DISTANCE_MOVED = 0.002;
   const MAX_THRESHOLD_KM = 0.001;
 
   // --- Geolocation tracking ---
@@ -90,38 +92,38 @@ export default function WorkoutMap() {
             const deltaSec = Math.max((now - prevTime) / 1000, 0.001);
             const gpsSpeed = loc.coords.speed != null ? loc.coords.speed * 3.6 : 0;
 
+            // --- адаптивный фильтр движения ---
             recentDistances.current.push(dKm);
             if (recentDistances.current.length > ADAPTIVE_BUFFER_SIZE) recentDistances.current.shift();
             const avgD = recentDistances.current.reduce((a, b) => a + b, 0) / recentDistances.current.length;
-            const adaptiveThreshold = Math.max(MIN_THRESHOLD_KM, Math.min(MAX_THRESHOLD_KM, avgD * 2));
+            const adaptiveThreshold = Math.max(MIN_DISTANCE_MOVED, Math.min(MAX_THRESHOLD_KM, avgD * 2));
+            const isMoving = (avgD > adaptiveThreshold) || gpsSpeed >= MIN_SPEED_KMH;
 
-            let isMoving = dKm > adaptiveThreshold || gpsSpeed >= MIN_SPEED_KMH;
-
-            let baseSpeed = 0;
             if (isMoving) {
-              baseSpeed = Math.max((dKm / deltaSec) * 3600, gpsSpeed);
-              const newDistance = distanceRef.current + dKm;
-              distanceRef.current = newDistance;
-              setDistance(newDistance);
+              const deltaStepsRaw = Math.round(dKm * stepsPerKm);
+              const MAX_STEPS_PER_TICK = 4;
+              const deltaSteps = dKm * 1000 > 5 ? 0 : Math.min(deltaStepsRaw, MAX_STEPS_PER_TICK);
 
-              const newSteps = Math.round(distanceRef.current * stepsPerKm);
-              stepsRef.current = newSteps;
-              setSteps(newSteps);
+              if (deltaSteps > 0) {
+                const newDistance = distanceRef.current + dKm;
+                distanceRef.current = newDistance;
+                setDistance(newDistance);
 
-              if (baseSpeed > maxSpeedRef.current) maxSpeedRef.current = baseSpeed;
-            }
+                stepsRef.current += deltaSteps;
+                setSteps(stepsRef.current);
 
-            speedBuffer.current.push(baseSpeed);
-            if (speedBuffer.current.length > SPEED_BUFFER_SEC) speedBuffer.current.shift();
-            const smoothed = speedBuffer.current.reduce((a, b) => a + b, 0) / speedBuffer.current.length;
+                const baseSpeed = Math.max((dKm / deltaSec) * 3600, gpsSpeed);
+                speedBuffer.current.push(baseSpeed);
+                if (speedBuffer.current.length > SPEED_BUFFER_SEC) speedBuffer.current.shift();
+                const smoothed = speedBuffer.current.reduce((a, b) => a + b, 0) / speedBuffer.current.length;
+                setSpeed(smoothed);
 
-            if (!isMoving && gpsSpeed < MIN_SPEED_KMH) {
+                if (baseSpeed > maxSpeedRef.current) maxSpeedRef.current = baseSpeed;
+                lastStopRef.current = null;
+              }
+            } else {
               if (!lastStopRef.current) lastStopRef.current = now;
               if (now - lastStopRef.current > STOP_TIMEOUT) setSpeed(0);
-              else setSpeed(smoothed);
-            } else {
-              lastStopRef.current = null;
-              setSpeed(smoothed);
             }
           } else {
             const initialSpeed = loc.coords.speed != null && loc.coords.speed * 3.6 >= MIN_SPEED_KMH ? loc.coords.speed * 3.6 : 0;
@@ -139,21 +141,93 @@ export default function WorkoutMap() {
     return () => { if (locationSub) locationSub.remove(); };
   }, [started, paused, countdown]);
 
-  // Countdown
+  // --- Accelerometer step detection ---
+useEffect(() => {
+  if (!started) return;
+
+  const STEP_INTERVAL = 400;
+  const BUFFER_SIZE = 8;
+  const BASE_THRESHOLD = 1.2;
+  const MIN_STEP_MAGNITUDE = 1.05;
+  const FLAT_THRESHOLD = 0.02;
+  const MIN_SPEED = 0.5; // минимальная скорость для засчета шага (км/ч)
+  const jerkThreshold = 0.8; // сила резкого рывка
+  const directionBufferSize = 5; // сколько последних измерений анализируем
+
+  if (!directionBuffer.current) directionBuffer.current = [];
+
+  const subscription = Accelerometer.addListener(acc => {
+    const magnitude = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
+    const horizontal = Math.sqrt(acc.x ** 2 + acc.y ** 2);
+
+    // --- фильтр "телефон лежит" ---
+    if (horizontal < FLAT_THRESHOLD && Math.abs(acc.z - 1) < FLAT_THRESHOLD) return;
+
+    // --- буфер и сглаживание ---
+    accelBuffer.current.push(magnitude);
+    if (accelBuffer.current.length > BUFFER_SIZE) accelBuffer.current.shift();
+    const avgMag = accelBuffer.current.reduce((a, b) => a + b, 0) / accelBuffer.current.length;
+
+    // --- стандартное отклонение буфера ---
+    const mean = avgMag;
+    const variance =
+      accelBuffer.current.reduce((sum, val) => sum + (val - mean) ** 2, 0) / accelBuffer.current.length;
+    const stdDev = Math.sqrt(variance);
+
+    const now = Date.now();
+    const adaptiveThreshold = BASE_THRESHOLD + 0.2 * Math.sin(duration / 10) + stdDev * 0.5;
+
+    // --- фильтр резких одиночных движений ---
+    directionBuffer.current.push({ x: acc.x, y: acc.y, z: acc.z });
+    if (directionBuffer.current.length > directionBufferSize) directionBuffer.current.shift();
+
+    const last = directionBuffer.current[directionBuffer.current.length - 1];
+    const prev = directionBuffer.current[0];
+    const deltaX = Math.abs(last.x - prev.x);
+    const deltaY = Math.abs(last.y - prev.y);
+    const deltaZ = Math.abs(last.z - prev.z);
+
+    // если был резкий рывок, но вся история ровная → шум
+    const wasStable = accelBuffer.current.every(val => Math.abs(val - mean) < 0.05);
+    if ((deltaX > jerkThreshold || deltaY > jerkThreshold || deltaZ > jerkThreshold) && wasStable) {
+      return; // игнорируем
+    }
+
+    // --- фильтр скорости и движения ---
+    const isMoving = speed >= MIN_SPEED;
+
+    if (
+      avgMag > adaptiveThreshold &&
+      avgMag > MIN_STEP_MAGNITUDE &&
+      now - lastStepTime.current > STEP_INTERVAL &&
+      isMoving
+    ) {
+      lastStepTime.current = now;
+      stepsRef.current += 1;
+      setSteps(stepsRef.current);
+    }
+  });
+
+  Accelerometer.setUpdateInterval(100);
+  return () => subscription.remove();
+}, [started, duration, speed]);
+
+
+
+
+  // --- Countdown ---
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (countdown !== null && countdown > 0) {
       timer = setTimeout(() => setCountdown((c) => (c ? c - 1 : 0)), 1000);
-    } else if (countdown === 0) {
-      setCountdown(null);
-    }
+    } else if (countdown === 0) setCountdown(null);
     return () => { if (timer) clearTimeout(timer); };
   }, [countdown]);
 
-  // Duration interval
+  // --- Duration interval ---
   useEffect(() => {
     if (started && countdown === null && !paused) {
-      durationInterval.current = setInterval(() => setDuration((prev) => prev + 1), 1000) as unknown as number;
+      durationInterval.current = setInterval(() => setDuration((prev) => prev + 1), 1000);
     } else {
       if (durationInterval.current) clearInterval(durationInterval.current);
     }
@@ -165,7 +239,6 @@ export default function WorkoutMap() {
     try {
       const guestId = await getGuestId();
       const workoutId = UUID.v4() as string;
-
       const { data: { user } } = await supabase.auth.getUser();
 
       const workout = {
@@ -198,6 +271,8 @@ export default function WorkoutMap() {
     lastTimestampRef.current = null;
     recentDistances.current = [];
     maxSpeedRef.current = 0;
+    accelBuffer.current = [];
+    lastStepTime.current = 0;
 
     setDistance(0);
     setSteps(0);
@@ -223,6 +298,8 @@ export default function WorkoutMap() {
     speedBuffer.current = [];
     recentDistances.current = [];
     maxSpeedRef.current = 0;
+    accelBuffer.current = [];
+    lastStepTime.current = 0;
 
     setLocation(null);
     setDistance(0);
