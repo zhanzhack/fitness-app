@@ -67,4 +67,87 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
+
+  // Water Tracker
+
+waterHeader: {
+  color: "#fff",
+  fontSize: 18,
+  fontWeight: "bold",
+  marginBottom: 12,
+  textAlign: "left",
+},
+
+waterRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  marginBottom: 16,
+},
+
+counterContainer: {
+  alignItems: "center",
+  justifyContent: "center",
+  marginRight: 16,
+},
+
+value: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "bold",
+  marginBottom: 8,
+},
+
+addWaterBtn: {
+  borderRadius: 20,
+  overflow: "hidden",
+},
+
+gradientBtn: {
+  paddingVertical: 10,
+  paddingHorizontal: 20,
+  borderRadius: 20,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+addWaterText: {
+  color: "#fff",
+  fontWeight: "bold",
+  fontSize: 14,
+},
+
+beakerContainer: {
+  marginTop: -25, // подняли мензурку выше
+  justifyContent: "flex-start",
+},
+
+beaker: {
+  width: 60,
+  height: 120,
+  borderWidth: 2,
+  borderColor: "#fff",
+  borderRadius: 12,
+  overflow: "hidden",
+  backgroundColor: "rgba(255,255,255,0.05)",
+  justifyContent: "flex-end",
+  position: "relative",
+},
+
+waterFill: {
+  width: "100%",
+  position: "absolute",
+  bottom: 0,
+},
+
+beakerMark: {
+  position: "absolute",
+  left: 4,
+  width: 10,
+  height: 2,
+  backgroundColor: "#fff",
+  opacity: 0.7,
+},
+
+
 });

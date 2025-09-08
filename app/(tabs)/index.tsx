@@ -14,7 +14,8 @@ import { AnimatedCircularProgress } from "react-native-circular-progress";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useLastWorkouts } from "../../hooks/useLastWorkouts";
 import useActivityTracker from "../../hooks/useActivityTracker";
-import { styles } from "../../lib/styles/index.style"; // ✅ импорт стилей
+import { styles } from "../../lib/styles/index.style"; 
+import WaterTracker from "../../components/WaterTracker"; // ✅ новый компонент
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -66,6 +67,7 @@ export default function HomeScreen() {
       >
         <View style={{ marginTop: screenHeight * 0.1 }} />
 
+        {/* Activity Rings */}
         <View style={styles.ringsContainer}>
           <AnimatedCircularProgress
             size={200} width={20} fill={(calories / caloriesGoal) * 100}
@@ -85,6 +87,7 @@ export default function HomeScreen() {
 
         <Text style={styles.header}>Today's Activity</Text>
 
+        {/* Stats Card */}
         <View style={[styles.card, { padding: 20 }]}>
           <View style={styles.statRow}>
             <View style={styles.labelRow}><Text style={styles.label}>🔥 Calories</Text></View>
@@ -100,6 +103,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Quick Actions */}
         <View style={styles.activitiesRow}>
           {["running", "walking", "bike", "more"].map(mode => {
             const iconName = mode === "running" ? "run" : mode === "walking" ? "walk" : mode === "bike" ? "bike" : "dots-horizontal";
@@ -112,6 +116,7 @@ export default function HomeScreen() {
           })}
         </View>
 
+        {/* Last Workouts */}
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.8}
@@ -142,6 +147,10 @@ export default function HomeScreen() {
             })
           )}
         </TouchableOpacity>
+
+        {/* ✅ Water Tracker */}
+        <WaterTracker />
+
       </ScrollView>
     </LinearGradient>
   );
