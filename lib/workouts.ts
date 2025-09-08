@@ -1,6 +1,7 @@
+
 import { supabase } from "./supabase";
 
-// Получение всех тренировок
+// получение всех тренировок
 export async function fetchWorkouts(userId?: string, guestId?: string) {
   let query = supabase.from("workouts").select("*").order("created_at", { ascending: false });
 
