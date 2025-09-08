@@ -1,5 +1,4 @@
-// app/tabs/profiles.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -15,37 +14,29 @@ import { supabase } from "../../lib/supabase";
 import { getGuestId } from "../../lib/guest";
 import { mergeGuestWorkouts } from "../../lib/workouts";
 import { useRouter } from "expo-router";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons"; // <-- для стрелки
 
 export default function ProfileScreen() {
   const router = useRouter();
-
   const [stepsGoal, setStepsGoal] = useState("7500");
   const [caloriesGoal, setCaloriesGoal] = useState("2000");
   const [movingGoal, setMovingGoal] = useState("115");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
-
   const [bedtimeEnabled, setBedtimeEnabled] = useState(false);
   const [bedtime, setBedtime] = useState<Date>(new Date());
   const [wakeup, setWakeup] = useState<Date>(new Date());
-
   const [showBedtimePicker, setShowBedtimePicker] = useState(false);
   const [showWakeupPicker, setShowWakeupPicker] = useState(false);
-
   const [userId, setUserId] = useState<string | null>(null);
   const [guestId, setGuestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- Загрузка данных ---
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id ?? null);
-
       let currentGuestId: string | null = null;
       if (!user) {
         currentGuestId = await getGuestId();
@@ -104,15 +95,12 @@ export default function ProfileScreen() {
     loadData();
   }, []);
 
-  // --- Сохранение данных ---
   const saveData = async () => {
     if (!userId) {
-      // гость → переход на логин
       router.push("/auth/login");
       return;
     }
 
-    // авторизованный пользователь
     await supabase
       .from("profiles")
       .update({
@@ -140,7 +128,13 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+      {/* Заголовок с кнопкой назад */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Icon name="arrow-left" size={28} color="#FFD93D" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Profile</Text>
+      </View>
 
       {/* Вес и рост */}
       <View style={styles.card}>
@@ -277,7 +271,18 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 16 },
-  title: { color: "#fff", fontSize: 26, fontWeight: "bold", marginBottom: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: {
+    color: "#fff",
+    fontSize: 26,
+    fontWeight: "bold",
+    textAlign: "center",
+    flex: 1,
+  },
   card: { backgroundColor: "#111", borderRadius: 16, padding: 16, marginBottom: 20 },
   sectionTitle: { color: "#fff", fontSize: 18, fontWeight: "600", marginBottom: 12 },
   inputBlock: { marginBottom: 16 },
